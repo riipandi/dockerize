@@ -1,0 +1,95 @@
+version: '3.3'
+
+services:
+  traefik:
+    container_name: traefik
+    image: traefik:v2.7
+    command:
+      - --accesslog
+      - --log.level=ERROR
+      - --api.insecure=true
+      - --api.dashboard=true
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --providers.docker
+      - --providers.docker.exposedbydefault=false
+      - --certificatesresolvers.leresolver.acme.httpchallenge=true
+      ## Set your email address here, is for the generation of SSL certificates with Let's Encrypt.
+      - --certificatesresolvers.leresolver.acme.email=aris@ripandis.com
+      - --certificatesresolvers.leresolver.acme.storage=./acme.json
+      - --certificatesresolvers.leresolver.acme.httpchallenge.entrypoint=web
+    restart: always
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./acme.json:/acme.json"
+    labels:
+      # Traefik dashboard
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`dash.stats.web.id`)"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.services.traefik.loadbalancer.server.port=8080"
+      - "traefik.http.routers.traefik.tls.certresolver=leresolver"
+      # Securing Traefik dashboard
+      # - "traefik.http.routers.traefik.middlewares=authtraefik"
+      # - "traefik.http.middlewares.authtraefik.basicauth.users=user:$$apr1$$q8eZFHjF$$Fvmkk//V6Btlaf2i/ju5n/"
+      # global redirect to https
+      - "traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)"
+      - "traefik.http.routers.http-catchall.entrypoints=web"
+      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+
+  plausible:
+    image: plausible/analytics:latest
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    restart: always
+    command: sh -c "sleep 10 && /entrypoint.sh db createdb && /entrypoint.sh db migrate && /entrypoint.sh db init-admin && /entrypoint.sh run"
+    depends_on:
+      - plausible_db
+      - plausible_events_db
+      - mailer
+    env_file:
+      - '.env'
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.plausible.rule=Host(`stats.web.id`)"
+      - "traefik.http.routers.plausible.entrypoints=websecure"
+      - "traefik.http.services.plausible.loadbalancer.server.port=8000"
+      - "traefik.http.routers.plausible.service=plausible"
+      - "traefik.http.routers.plausible.tls.certresolver=leresolver"
+
+  plausible_db:
+    image: postgres:12-alpine
+    restart: always
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=postgres
+
+  plausible_events_db:
+    image: yandex/clickhouse-server:latest-alpine
+    restart: always
+    volumes:
+      - event_data:/var/lib/clickhouse
+      - ./clickhouse/clickhouse-config.xml:/etc/clickhouse-server/config.d/logging.xml:ro
+      - ./clickhouse/clickhouse-user-config.xml:/etc/clickhouse-server/users.d/logging.xml:ro
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
+  mailer:
+    image: bytemark/smtp
+    restart: always
+
+volumes:
+  db_data:
+    driver: local
+  event_data:
+    driver: local
+  geoip:
+    driver: local

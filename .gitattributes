@@ -1,0 +1,6 @@
+* text=auto
+*.yml linguist-vendored
+*.yaml linguist-vendored
+changelog.md export-ignore
+readme.md export-ignore
+license.txt export-ignore
