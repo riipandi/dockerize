@@ -42,52 +42,32 @@ services:
       - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
       - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
 
-  plausible:
-    image: plausible/analytics:latest
+  umami:
+    image: ghcr.io/mikecao/umami:postgresql-latest
     restart: always
-    command: sh -c "sleep 10 && /entrypoint.sh db createdb && /entrypoint.sh db migrate && /entrypoint.sh db init-admin && /entrypoint.sh run"
     depends_on:
-      - plausible_db
-      - plausible_events_db
-      - mailer
-    env_file:
-      - '.env'
+      - umami_db
+    environment:
+      DATABASE_URL: postgresql://postgres:secret@umami_db:5432/postgres
+      DATABASE_TYPE: postgresql
+      HASH_SALT: ${HASH_SALT:-f77d04be5960d4ffd3d1cd918ca6e23e}
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.plausible.rule=Host(`stats.web.id`)"
-      - "traefik.http.routers.plausible.entrypoints=websecure"
-      - "traefik.http.services.plausible.loadbalancer.server.port=8000"
-      - "traefik.http.routers.plausible.service=plausible"
-      - "traefik.http.routers.plausible.tls.certresolver=leresolver"
+      - "traefik.http.routers.umami.rule=Host(`stats.web.id`)"
+      - "traefik.http.routers.umami.entrypoints=websecure"
+      - "traefik.http.services.umami.loadbalancer.server.port=3000"
+      - "traefik.http.routers.umami.service=umami"
+      - "traefik.http.routers.umami.tls.certresolver=leresolver"
 
-  plausible_db:
+  umami_db:
     image: postgres:12-alpine
     restart: always
     volumes:
+      - ./sql/pgsql_schema.sql:/docker-entrypoint-initdb.d/schema.postgresql.sql:ro
       - db_data:/var/lib/postgresql/data
     environment:
-      - POSTGRES_PASSWORD=postgres
-
-  plausible_events_db:
-    image: yandex/clickhouse-server:21.3.2.5
-    restart: always
-    volumes:
-      - event_data:/var/lib/clickhouse
-      - ./clickhouse/clickhouse-config.xml:/etc/clickhouse-server/config.d/logging.xml:ro
-      - ./clickhouse/clickhouse-user-config.xml:/etc/clickhouse-server/users.d/logging.xml:ro
-    ulimits:
-      nofile:
-        soft: 262144
-        hard: 262144
-
-  mailer:
-    image: bytemark/smtp
-    restart: always
+      - POSTGRES_PASSWORD=secret
 
 volumes:
   db_data:
-    driver: local
-  event_data:
-    driver: local
-  geoip:
     driver: local
