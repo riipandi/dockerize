@@ -1,0 +1,124 @@
+##
+# Please run:
+#  mkdir -p openvpn-data ; sudo chown -R $(whoami): $_
+#  mkdir -p storage ; sudo chown -R $(whoami): $_
+#  touch acme.json && chmod 0600 acme.json
+##
+version: "3.3"
+
+services:
+  traefik:
+    container_name: traefik
+    image: "traefik:latest"
+    command:
+      - --accesslog
+      - --log.level=ERROR
+      - --api.insecure=true
+      - --api.dashboard=true
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --providers.docker
+      - --providers.docker.exposedbydefault=false
+      - --certificatesresolvers.leresolver.acme.httpchallenge=true
+      ## Set your email address here, is for the generation of SSL certificates with Let's Encrypt.
+      - --certificatesresolvers.leresolver.acme.email=aris@ripandis.com
+      - --certificatesresolvers.leresolver.acme.storage=./acme.json
+      - --certificatesresolvers.leresolver.acme.httpchallenge.entrypoint=web
+    restart: always
+    ports:
+      - 80:80
+      - 443:443
+      # - 8080:8080
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./acme.json:/acme.json"
+    labels:
+      - "traefik.enable=true"
+      # Dashboard
+      - "traefik.http.routers.traefik.rule=Host(`dash.poc.web.id`)"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.services.traefik.loadbalancer.server.port=8080"
+      - "traefik.http.routers.traefik.tls.certresolver=leresolver"
+
+      # Securing Traefik dashboard
+      # - "traefik.http.routers.traefik.middlewares=authtraefik"
+      # - "traefik.http.middlewares.authtraefik.basicauth.users=user:$$apr1$$q8eZFHjF$$Fvmkk//V6Btlaf2i/ju5n/"
+
+      # global redirect to https
+      - "traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)"
+      - "traefik.http.routers.http-catchall.entrypoints=web"
+      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+
+  portainer:
+    # image: portainer/portainer-ce:2.4.2-alpine
+    image: portainer/portainer-ee:2.4.2-alpine
+    command: -H unix:///var/run/docker.sock
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    labels:
+      # Frontend
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`poc.web.id`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.services.frontend.loadbalancer.server.port=9000"
+      - "traefik.http.routers.frontend.service=frontend"
+      - "traefik.http.routers.frontend.tls.certresolver=leresolver"
+
+      # Edge
+      - "traefik.http.routers.edge.rule=Host(`edge.poc.web.id`)"
+      - "traefik.http.routers.edge.entrypoints=websecure"
+      - "traefik.http.services.edge.loadbalancer.server.port=8000"
+      - "traefik.http.routers.edge.service=edge"
+      - "traefik.http.routers.edge.tls.certresolver=leresolver"
+
+  minio:
+    image: minio/minio:latest
+    restart: always
+    volumes:
+      - 'minio_data:/data/minio'
+    command: minio server /data/minio --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=riipandi
+      - MINIO_ROOT_PASSWORD=secretpassword
+      # Do NOT use MINIO_DOMAIN or MINIO_SERVER_URL with Traefik.
+      # All Routing is done by Traefik, just tell minio where to redirect to.
+      - MINIO_DOMAIN=s3.poc.web.id,minio.poc.web.id
+      - MINIO_BROWSER_REDIRECT_URL=https://minio.poc.web.id
+    labels:
+      # Minio API
+      - "traefik.enable=true"
+      - "traefik.http.routers.minio.rule=Host(`s3.poc.web.id`)"
+      - "traefik.http.routers.minio.entrypoints=websecure"
+      - "traefik.http.services.minio.loadbalancer.server.port=9000"
+      - "traefik.http.routers.minio.service=minio"
+      - "traefik.http.routers.minio.tls.certresolver=leresolver"
+
+      # Minio Console
+      - "traefik.http.routers.minio-console.rule=Host(`minio.poc.web.id`)"
+      - "traefik.http.routers.minio-console.entrypoints=websecure"
+      - "traefik.http.services.minio-console.loadbalancer.server.port=9001"
+      - "traefik.http.routers.minio-console.service=minio-console"
+      - "traefik.http.routers.minio-console.tls.certresolver=leresolver"
+
+  # docker-compose run --rm openvpn ovpn_genconfig -u udp://vpn.poc.web.id
+  # docker-compose run --rm openvpn ovpn_initpki
+  # docker-compose run --rm openvpn easyrsa build-client-full riipandi nopass
+  # docker-compose run --rm openvpn ovpn_getclient riipandi > riipandi.ovpn
+  openvpn:
+    cap_add:
+     - NET_ADMIN
+    image: kylemanna/openvpn
+    container_name: openvpn
+    ports:
+     - '1194:1194/udp'
+    restart: always
+    volumes:
+     - ./openvpn-data/conf:/etc/openvpn
+
+volumes:
+  portainer_data:
+  minio_data:

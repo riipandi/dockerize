@@ -1,0 +1,87 @@
+# docker-compose run --rm server create_db
+# docker-compose logs -f
+
+version: '3.6'
+
+x-redash-service: &redash-service
+  image: redash/redash:8.0.2.b37747
+  depends_on:
+    - postgres
+    - redis
+  env_file: ./dotenv
+  restart: always
+  networks:
+    - redash-network
+services:
+  server:
+    <<: *redash-service
+    command: server
+    ports:
+      - "5001:5000"
+    environment:
+      REDASH_WEB_WORKERS: 4
+  scheduler:
+    <<: *redash-service
+    command: scheduler
+    environment:
+      QUEUES: "celery"
+      WORKERS_COUNT: 1
+  scheduled_worker:
+    <<: *redash-service
+    command: worker
+    environment:
+      QUEUES: "scheduled_queries,schemas"
+      WORKERS_COUNT: 1
+  adhoc_worker:
+    <<: *redash-service
+    command: worker
+    environment:
+      QUEUES: "queries"
+      WORKERS_COUNT: 2
+  redis:
+    image: redis:5.0-alpine
+    restart: always
+    ports:
+      - 6379:6379
+    networks:
+      - redash-network
+  postgres:
+    image: postgres:12-alpine
+    restart: always
+    volumes:
+      - pgsql_data:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+    env_file: ./dotenv
+    networks:
+      - redash-network
+  nginx:
+    image: redash/nginx:latest
+    ports:
+      - "80:80"
+    depends_on:
+      - server
+    links:
+      - server:redash
+    restart: always
+    networks:
+      - redash-network
+  mailhog:
+    image: 'mailhog/mailhog:latest'
+    ports:
+      - '${MAILHOG_PORT:-1025}:1025'
+      - '${MAILHOG_UI_PORT:-8025}:8025'
+    networks:
+      - redash-network
+
+networks:
+  redash-network:
+    driver: bridge
+
+volumes:
+  redash_data:
+    driver: local
+  pgsql_data:
+    driver: local
+  pgadmin_data:
+    driver: local

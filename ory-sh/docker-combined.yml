@@ -1,0 +1,44 @@
+version: '3'
+
+services:
+  # traefik:
+  #   image: traefik:v2.6
+  #   restart: always
+  #   command:
+  #     - --accesslog
+  #     - --api.insecure=true
+  #     - --providers.docker
+  #     - --providers.docker.exposedbydefault=false
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #   ports:
+  #     - 80:80
+  #     - 443:443
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)"
+  #     - "traefik.http.routers.http-catchall.entrypoints=web"
+  #     - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
+  #     - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+  #     # Traefik dashboard on subdomain
+  #     - "traefik.http.routers.traefik.rule=Host(`traefik.localhost`)"
+  #     - "traefik.http.routers.traefik.entrypoints=websecure"
+  #     - "traefik.http.routers.traefik.service=api@internal"
+  #     - "traefik.http.services.traefik.loadbalancer.server.port=8080"
+  #     - "traefik.http.routers.traefik.tls.certresolver=leresolver"
+
+  kratos:
+    image: oryd/kratos:v0.9
+    restart: always
+    ports:
+      - 4455:4455
+      - 4433:4433
+      - 4434:4434
+      - 4436:4436
+    # labels:
+    #   - "traefik.enable=true"
+    #   - "traefik.http.routers.kratos.rule=Host(`kratos.localhost`)"
+    #   - "traefik.http.routers.kratos.entrypoints=websecure"
+    #   - "traefik.http.services.kratos.loadbalancer.server.port=9000"
+    #   - "traefik.http.routers.kratos.service=kratos"
+    #   - "traefik.http.routers.kratos.tls.certresolver=leresolver"

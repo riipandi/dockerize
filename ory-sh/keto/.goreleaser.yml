@@ -1,0 +1,13 @@
+project_name: keto
+
+includes:
+  - from_url:
+      url: https://raw.githubusercontent.com/ory/xgoreleaser/master/build.tmpl.yml
+
+variables:
+  brew_name: keto
+  brew_description: 'The Ory Authorization Server (Ory Keto)'
+  buildinfo_hash: 'github.com/ory/keto/internal/driver/config.Commit'
+  buildinfo_tag: 'github.com/ory/keto/internal/driver/config.Version'
+  buildinfo_date: 'github.com/ory/keto/internal/driver/config.Date'
+  dockerfile: '.docker/Dockerfile-alpine'

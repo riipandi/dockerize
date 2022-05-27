@@ -1,0 +1,13 @@
+- op: add
+  path: /components/schemas/identityState/enum
+  value:
+    - active
+    - inactive
+- op: add
+  path: /components/schemas/identityCredentialsType/enum
+  value:
+    - password
+    - totp
+    - oidc
+    - webauthn
+    - lookup_secret

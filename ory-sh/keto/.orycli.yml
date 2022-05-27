@@ -1,0 +1,7 @@
+project: keto
+
+pre_release_hooks:
+  - ./scripts/render-schemas.sh
+
+ignore_tags:
+  - proto/.*

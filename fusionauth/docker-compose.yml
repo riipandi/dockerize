@@ -1,0 +1,60 @@
+version: '3'
+
+services:
+  pgsql:
+    image: postgres:12-alpine
+    environment:
+      PGDATA: /var/lib/postgresql/data/pgdata
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    # Un-comment to access the pgsql service directly
+#   ports:
+#     - 5432:5432
+    networks:
+      - fusionnet
+    restart: unless-stopped
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  fusionauth:
+    image: fusionauth/fusionauth-app:latest
+    depends_on:
+      - pgsql
+    environment:
+      DATABASE_URL: jdbc:postgresql://pgsql:5432/fusionauth
+      DATABASE_ROOT_USERNAME: ${POSTGRES_USER}
+      DATABASE_ROOT_PASSWORD: ${POSTGRES_PASSWORD}
+      DATABASE_USERNAME: ${DATABASE_USERNAME}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      # Prior to version 1.19.0, use this deprecated names
+      # FUSIONAUTH_MEMORY: ${FUSIONAUTH_MEMORY}
+      # FUSIONAUTH_SEARCH_ENGINE_TYPE: database
+      # FUSIONAUTH_URL: http://fusionauth:9011
+      # FUSIONAUTH_RUNTIME_MODE: development
+      FUSIONAUTH_APP_MEMORY: ${FUSIONAUTH_APP_MEMORY}
+      FUSIONAUTH_APP_RUNTIME_MODE: production
+      FUSIONAUTH_APP_URL: http://fusionauth:9011
+      SEARCH_TYPE: database
+    networks:
+     - fusionnet
+    restart: unless-stopped
+    ports:
+      - 9011:9011
+    volumes:
+      - fa_config:/usr/local/fusionauth/config
+
+  mailhog:
+    image: 'mailhog/mailhog:latest'
+    ports:
+      - '${MAILHOG_PORT:-1025}:1025'
+      - '${MAILHOG_DASHBOARD_PORT:-8025}:8025'
+    networks:
+      - fusionnet
+
+networks:
+  fusionnet:
+    driver: bridge
+
+volumes:
+  db_data:
+  fa_config:

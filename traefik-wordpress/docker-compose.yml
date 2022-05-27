@@ -1,0 +1,54 @@
+version: '3'
+
+services:
+  traefik:
+    image: traefik:v2.6
+    restart: always
+    command:
+      - --accesslog
+      - --api.insecure=true
+      - --providers.docker
+      - --providers.docker.exposedbydefault=false
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - 80:80
+      - 443:443
+      - 8080:8080
+
+  wordpress:
+    image: wordpress:php7.4-apache
+    depends_on:
+      - mysql
+    restart: always
+    environment:
+      - WORDPRESS_DB_HOST=mysql
+      - WORDPRESS_DB_USER=root
+      - WORDPRESS_DB_NAME=wordpress
+      - WORDPRESS_DB_PASSWORD=password
+    expose:
+      - 80
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.wordpress.rule=Host(`blog.localhost`)
+      # Aggressively Rate Limit Login Page
+      - traefik.http.routers.wordpress-login.rule=Host(`blog.localhost`) && PathPrefix(`/wp-login.php`) && Method(`POST`)
+      - traefik.http.middlewares.wordpress-login-ratelimit.ratelimit.average=5
+      - traefik.http.middlewares.wordpress-login-ratelimit.ratelimit.burst=1
+      - traefik.http.middlewares.wordpress-login-ratelimit.ratelimit.period=1m
+      - traefik.http.routers.wordpress-login.middlewares=wordpress-login-ratelimit@docker
+
+  mysql:
+    image: mysql:8.0.22
+    restart: always
+    environment:
+      - MYSQL_DATABASE=wordpress
+      - MYSQL_ROOT_PASSWORD=password
+
+  adminer:
+    image: adminer:4.6.3-standalone
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.adminer.rule = "PathPrefix(`/adminer`) || PathPrefix(`/phpmyadmin`)"
+    depends_on:
+      - mysql

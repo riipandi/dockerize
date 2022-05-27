@@ -1,0 +1,47 @@
+version: "3.7"
+
+services:
+  fuelstack_api:
+    image: riipandi/fuelstack-api:latest
+    restart: always
+    depends_on:
+      - pgsql
+    expose:
+      - 3030
+    environment:
+      APP_SECRET: 'bcc8f28affb919cb58e5a9c016880ff2'
+      DATABASE_URL: 'postgresql://postgres:dbpassword@pgsql:5432/pgsqldb?schema=public'
+    networks:
+      - poc_pocnet
+
+  fuelstack_web:
+    image: riipandi/fuelstack-web:latest
+    restart: always
+    depends_on:
+      - fuelstack_api
+    expose:
+      - 3000
+    environment:
+      PORT: 3000
+    networks:
+      - poc_pocnet
+
+  pgsql:
+    image: postgres:14-alpine
+    restart: always
+    volumes:
+      - pgsql_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: dbpassword
+      POSTGRES_DB: pgsqldb
+    networks:
+      - poc_pocnet
+
+networks:
+  poc_pocnet:
+    external: true
+
+volumes:
+  pgsql_data:
+    driver: local

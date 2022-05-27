@@ -1,0 +1,11 @@
+docs/
+scripts/
+contrib/
+.bin/
+.github/
+*.yaml
+*.yml
+*.json
+*.md
+*ignore
+Makefile

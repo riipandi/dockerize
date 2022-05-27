@@ -1,0 +1,13 @@
+.DS_Store
+.DS_Store?
+Dockerfile
+.dockerignore
+node_modules/
+vendor/
+npm-debug.log
+README.md
+.next
+
+package-lock.json
+yarn.lock
+composer.lock

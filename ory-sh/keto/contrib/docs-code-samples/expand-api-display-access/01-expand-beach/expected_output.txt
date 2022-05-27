@@ -1,0 +1,46 @@
+{
+  "type": "union",
+  "children": [
+    {
+      "type": "union",
+      "children": [
+        {
+          "type": "leaf",
+          "subject_id": "maureen"
+        }
+      ],
+      "subject_set": {
+        "namespace": "files",
+        "object": "/photos/beach.jpg",
+        "relation": "owner"
+      }
+    },
+    {
+      "type": "union",
+      "children": [
+        {
+          "type": "leaf",
+          "subject_set": {
+            "namespace": "directories",
+            "object": "/photos",
+            "relation": "owner"
+          }
+        },
+        {
+          "type": "leaf",
+          "subject_id": "laura"
+        }
+      ],
+      "subject_set": {
+        "namespace": "directories",
+        "object": "/photos",
+        "relation": "access"
+      }
+    }
+  ],
+  "subject_set": {
+    "namespace": "files",
+    "object": "/photos/beach.jpg",
+    "relation": "access"
+  }
+}

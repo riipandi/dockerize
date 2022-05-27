@@ -1,0 +1,83 @@
+# docker-compose logs -f graphql-engine
+
+version: '3.6'
+
+services:
+  graphql-engine:
+    image: hasura/graphql-engine:v2.1.1
+    ports:
+      - 5080:8080
+    depends_on:
+      - pghasura
+    restart: always
+    environment:
+      ## postgres database to store Hasura metadata
+      HASURA_GRAPHQL_METADATA_DATABASE_URL: postgres://postgres:postgrespassword@pghasura:5432/postgres
+      ## this env var can be used to add the above postgres database to Hasura as a data source. this can be removed/updated based on your needs
+      PG_DATABASE_URL: postgres://postgres:postgrespassword@pghasura:5432/postgres
+      ## enable the console served by server
+      HASURA_GRAPHQL_ENABLE_CONSOLE: 'true' # set to 'false' to disable console
+      ## enable debugging mode. It is recommended to disable this in production
+      HASURA_GRAPHQL_DEV_MODE: 'true'
+      HASURA_GRAPHQL_ENABLE_TELEMETRY: 'false'
+      HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log, query-log
+      ## uncomment next line to set an admin secret
+      HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET:-hasurapassword}
+      ## Enter a comma-separated list of domains below
+      ## Example: https://example.com, https://.foo.bar.com:8080, http://*.localhost
+      HASURA_GRAPHQL_CORS_DOMAIN: ${HASURA_GRAPHQL_CORS_DOMAIN:-*}
+      ## Database connection from environment variable
+      HASURA_GRAPHQL_DB_URL_FROM_ENV: ${HASURA_GRAPHQL_DB_URL_FROM_ENV:-postgres://postgres:postgrespassword@pgsql:5432/pgsql_db}
+      # HASURA_GRAPHQL_DB_URL_FROM_ENV: postgres://postgres:secret@host.docker.internal:5432/localdb
+    networks:
+      - hasura-network
+  pghasura:
+    image: postgres:12-alpine
+    restart: always
+    volumes:
+    - pghasura_data:/var/lib/postgresql/data
+    ports:
+      - 5081:5432
+    environment:
+      POSTGRES_PASSWORD: postgrespassword
+    networks:
+      - hasura-network
+  pgsql:
+    image: supabase/postgres
+    # image: postgres:14-alpine
+    restart: always
+    volumes:
+      - pgsql_data:/var/lib/postgresql/data
+    ports:
+      - 5082:5432
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: pgsql_db
+    networks:
+      - hasura-network
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    restart: unless-stopped
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-pgadmin4@pgadmin.org}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    networks:
+      - hasura-network
+
+networks:
+  hasura-network:
+    driver: bridge
+
+volumes:
+  pghasura_data:
+    driver: local
+  pgsql_data:
+    driver: local
+  pgadmin_data:
+    driver: local

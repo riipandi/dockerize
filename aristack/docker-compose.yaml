@@ -1,0 +1,99 @@
+version: "3.3"
+
+services:
+  # mkdir -p ngxproxy ; sudo chown -R $(whoami): $_
+  ngxproxy:
+    image: 'jc21/nginx-proxy-manager:latest'
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    restart: unless-stopped
+    depends_on:
+      - ngxproxydb
+    ports:
+      - '80:80'
+      - '81:81'
+      - '443:443'
+    environment:
+      DB_MYSQL_HOST: 'ngxproxydb'
+      DB_MYSQL_PORT: 3306
+      DB_MYSQL_USER: 'ngxproxy'
+      DB_MYSQL_PASSWORD: 'secretdb'
+      DB_MYSQL_NAME: 'ngxproxy'
+      DISABLE_IPV6: 'true'
+    volumes:
+      - ./ngxproxy/data:/data
+      - ./ngxproxy/letsencrypt:/etc/letsencrypt
+    networks:
+      - pocnet
+
+  ngxproxydb:
+    image: 'mysql:8.0'
+    restart: always
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: 'secretdb'
+      MYSQL_DATABASE: 'ngxproxy'
+      MYSQL_USER: 'ngxproxy'
+      MYSQL_PASSWORD: 'secretdb'
+    volumes:
+      - ./ngxproxy/data/mysql:/var/lib/mysql
+    networks:
+      - pocnet
+
+  portainer:
+    # image: portainer/portainer-ce:alpine
+    image: portainer/portainer-ee:alpine
+    command: -H unix:///var/run/docker.sock
+    restart: always
+    expose:
+      - 8000
+      - 9443
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    networks:
+      - pocnet
+
+  # mkdir -p storage ; sudo chown -R $(whoami): $_
+  minio:
+    image: minio/minio:latest
+    restart: always
+    volumes:
+      - 'minio_data:/data/minio'
+    command: minio server /data/minio --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: 'riipandi'
+      MINIO_ROOT_PASSWORD: 'SecretPAssw0rd!'
+      MINIO_DOMAIN: 's3.poc.web.id'
+      MINIO_BROWSER_REDIRECT_URL: 'https://minio.poc.web.id'
+    networks:
+      - pocnet
+
+  # ------------------------------------------------------------------------
+  # >> dc = docker-compose
+  # mkdir -p openvpn_data ; sudo chown -R $(whoami): $_
+  # ------------------------------------------------------------------------
+  # dc run --rm openvpn ovpn_genconfig -u udp://vpn.poc.web.id
+  # dc run --rm openvpn ovpn_initpki
+  # dc run --rm openvpn easyrsa build-client-full ripandis nopass
+  # dc run --rm openvpn ovpn_getclient ripandis > ripandis.ovpn
+  openvpn:
+    cap_add:
+     - NET_ADMIN
+    image: kylemanna/openvpn
+    container_name: openvpn
+    ports:
+     - '1194:1194/udp'
+    restart: always
+    volumes:
+     - ./openvpn_data/conf:/etc/openvpn
+    networks:
+      - pocnet
+
+networks:
+  pocnet:
+    driver: bridge
+
+volumes:
+  portainer_data:
+  minio_data:

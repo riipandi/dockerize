@@ -1,0 +1,20 @@
+version: "3.3"
+
+services:
+  uptimekuma:
+    image: louislam/uptime-kuma:1-alpine
+    restart: always
+    expose:
+      - 3001
+    volumes:
+      - uptimekuma_data:/app/data
+    networks:
+      - poc_pocnet
+
+networks:
+  poc_pocnet:
+    external: true
+
+volumes:
+  uptimekuma_data:
+    driver: local

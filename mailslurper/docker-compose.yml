@@ -1,0 +1,15 @@
+#  Aris Ripandi <https://github.com/riipandi>
+#  Date: May 27, 2022
+
+version: '3'
+
+services:
+  mailslurper:
+    image: marcopas/docker-mailslurper
+    restart: always
+    volumes:
+      - ./config.json:/opt/mailslurper/config.json
+    ports:
+      - '1025:1025'
+      - '8025:8025'
+      - '8085:8085'

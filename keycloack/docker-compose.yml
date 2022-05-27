@@ -1,0 +1,54 @@
+# https://github.com/keycloak/keycloak-containers/tree/main/docker-compose-examples
+
+version: '3'
+
+services:
+  pgsql:
+    image: postgres:12-alpine
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secured}
+      POSTGRES_USER: ${POSTGRES_USER:-keycloak}
+      POSTGRES_DB: ${POSTGRES_DB:-keycloak}
+    networks:
+      - keycloacknet
+    restart: unless-stopped
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:legacy
+    environment:
+      DB_VENDOR: POSTGRES
+      DB_ADDR: pgsql
+      DB_DATABASE: ${POSTGRES_DB:-keycloak}
+      DB_USER: ${POSTGRES_USER:-keycloak}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-secured}
+      DB_SCHEMA: public
+      KEYCLOAK_USER: admin
+      KEYCLOAK_PASSWORD: Passw0rd
+      # Uncomment the line below if you want to specify JDBC parameters.
+      # The parameter below is just an example, and it shouldn't be used
+      # in production without knowledge. It is highly recommended that you
+      # read the PostgreSQL JDBC driver documentation in order to use it.
+      #JDBC_PARAMS: "ssl=true"
+    ports:
+      - 8080:8080
+    depends_on:
+      - pgsql
+    networks:
+      - keycloacknet
+
+  mailhog:
+    image: 'mailhog/mailhog:latest'
+    ports:
+      - '${MAILHOG_PORT:-1025}:1025'
+      - '${MAILHOG_DASHBOARD_PORT:-8025}:8025'
+    networks:
+      - keycloacknet
+
+networks:
+  keycloacknet:
+    driver: bridge
+
+volumes:
+  db_data:

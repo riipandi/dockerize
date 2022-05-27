@@ -1,0 +1,80 @@
+#  Aris Ripandi <https://github.com/riipandi>
+#  Date: Oct 12, 2021
+
+# mkcert -install
+# mkcert --key-file server.key --cert-file server.crt localhost 127.0.0.1 ::1 0.0.0.0 maildev.lkpp.go.id
+
+version: '3'
+
+services:
+  nginx:
+    depends_on:
+      - smtp4dev
+    image: nginx:mainline-alpine
+    restart: unless-stopped
+    tty: true
+    volumes:
+      - ./config:/etc/nginx/templates
+      # - ./config/nginx.conf:/etc/nginx/nginx.conf
+      # - ./config/nginx-vhost.conf:/etc/nginx/conf.d/default.conf
+      # - ./config/mail-proxy.conf:/etc/nginx/conf.d/mail-proxy.conf
+      - ./certs/chain.pem:/etc/ssl/certs/chain.pem
+      - ./certs/dhparam.pem:/etc/ssl/certs/dhparam.pem
+      - ./certs/server.crt:/etc/ssl/certs/server.crt
+      - ./certs/server.key:/etc/ssl/certs/server.key
+    ports:
+      - 8025:80
+      - 8443:443
+    environment:
+      - WEBUI=http://smtp4dev:80
+    command: /bin/sh -c "envsubst < /etc/nginx/templates/nginx.conf.template > /etc/nginx/nginx.conf && nginx -g 'daemon off;'"
+    networks:
+      - mailer-network
+  smtp4dev:
+    image: rnwood/smtp4dev:v3
+    restart: always
+    ports:
+      # - '8025:80'  # port the web interface should be accessible on
+      - '1025:25'  # port the SMTP server should be accessible on
+      - '1143:143' # port the IMAP server should be accessible on
+    volumes:
+        - smtp4dev_data:/smtp4dev
+    environment:
+      - ServerOptions__BasePath=/
+      - ServerOptions__HostName=smtp4dev
+      ## Specifies the path where the database will be stored relative to APPDATA env var on Windows or XDG_CONFIG_HOME on non-Windows. Specify "" to use an in memory database.
+      #- ServerOptions__Database=database.db
+      ## Specifies the number of messages to keep
+      #- ServerOptions__NumberOfMessagesToKeep=100
+      ## Specifies the number of sessions to keep
+      #- ServerOptions__NumberOfSessionsToKeep=100
+      ## Specifies the TLS mode to use. None=Off. StartTls=On demand if client supports STARTTLS.
+      ## ImplicitTls=TLS as soon as connection is established.
+      - ServerOptions__TlsMode=StartTls
+      ## Specifies the TLS certificate to use if TLS is enabled/requested.
+      ## Specify "" to use an auto-generated self-signed certificate (then see console output on first startup)
+      # - ServerOptions__TlsCertificate=
+      ## Sets the name of the SMTP server that will be used to relay messages or "" if messages should not be relayed
+      #- RelayOptions__SmtpServer=
+      ## Sets the port number for the SMTP server used to relay messages.
+      #- RelayOptions__SmtpPort=25
+      ## Specifies a comma separated list of recipient addresses for which messages will be relayed. An empty list means that no messages are relayed.
+      #- RelayOptions__AllowedEmailsString=
+      ## Specifies the address used in MAIL FROM when relaying messages. (Sender address in message headers is left unmodified). The sender of each message is used if not specified.
+      #- RelayOptions__SenderAddress=
+      ## The username for the SMTP server used to relay messages. If "" no authentication is attempted.
+      #- RelayOptions__Login=
+      ## The password for the SMTP server used to relay messages
+      #- RelayOptions__Password=
+      ## Specifies the port the IMAP server will listen on - allows standard email clients to view/retrieve messages
+      #- ServerOptions__ImapPort=143
+    networks:
+      - mailer-network
+
+networks:
+  mailer-network:
+    driver: bridge
+
+volumes:
+  smtp4dev_data:
+    driver: local
