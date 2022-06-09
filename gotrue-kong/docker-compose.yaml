@@ -1,0 +1,99 @@
+# docker-compose run gotrue gotrue migrate
+# docker-compose run kong kong migrations bootstrap
+# curl -i -X GET --url http://localhost:8001/services
+
+version: '3.6'
+
+services:
+  kong:
+    # image: kong:2.8.1-alpine
+    image: kong/kong-gateway:2.8-alpine
+    ports:
+      - '8000:8000'
+      - '8443:8443'
+      - '8445:8445'
+      - '8003:8003'
+      - '8004:8004'
+      - '127.0.0.1:8001:8001'
+      - '127.0.0.1:8002:8002'
+      - '127.0.0.1:8444:8444'
+    depends_on:
+      - pgsql
+    restart: always
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: pgsql
+      KONG_PG_USER: postgres
+      KONG_PG_PASSWORD: secret
+      KONG_PASSWORD: secret
+      KONG_ANONYMOUS_REPORTS: false
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: '0.0.0.0:8001, 0.0.0.0:8444 ssl'
+      KONG_ADMIN_GUI_URL: 'http://localhost:8002'
+      KONG_PORTAL_GUI_HOST: 'localhost:8003'
+      KONG_LICENSE_DATA: '{}'
+      KONG_PORTAL: on
+
+  kong-migration:
+    # image: kong:2.8.1-alpine
+    image: kong/kong-gateway:2.8-alpine
+    command: 'kong migrations bootstrap'
+    restart: on-failure
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: pgsql
+      KONG_PG_USER: postgres
+      KONG_PG_PASSWORD: secret
+      KONG_PASSWORD: secret
+    links:
+      - pgsql
+    depends_on:
+      - pgsql
+
+  gotrue:
+    image: supabase/gotrue:latest
+    ports:
+      - '9999:9999'
+    depends_on:
+      - pgsql
+      - redis
+    restart: always
+    env_file: './.env'
+
+  pgsql:
+    image: postgres:9.6
+    restart: always
+    volumes:
+      - pgsql_data:/var/lib/postgresql/data
+      - './init-database.sql:/docker-entrypoint-initdb.d/init-database.sql'
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: gotrue
+
+  redis:
+    image: redis:6-alpine
+    restart: always
+    ports:
+      - '6379:6379'
+    volumes:
+      - 'redis_data:/data'
+    command: redis-server --save 60 1 --loglevel warning
+
+  inbucket:
+    image: inbucket/inbucket:latest
+    ports:
+      - '1100:1100' # POP3
+      - '1025:2500' # SMTP
+      - '8025:9000' # Web interface
+
+volumes:
+  pgsql_data:
+    driver: local
+  redis_data:
+    driver: local
