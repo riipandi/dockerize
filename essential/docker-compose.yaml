@@ -1,0 +1,50 @@
+version: "3.7"
+
+services:
+  pgsql:
+    image: postgres:14-alpine
+    restart: always
+    volumes:
+      - pgsql_data:/var/lib/postgresql/data
+      - './prisma/initialize-db.sql:/docker-entrypoint-initdb.d/initialize-db.sql'
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: securedb
+      POSTGRES_DB: apiris
+
+  redis:
+    # image: redis:6-alpine
+    image: eqalpha/keydb:latest
+    restart: always
+    ports:
+      - '6379:6379'
+    volumes:
+      - 'redis_data:/data'
+    command: redis-server --save 60 1 --loglevel warning
+
+  inbucket:
+    image: inbucket/inbucket:latest
+    ports:
+      - '1100:1100' # POP3
+      - '1025:2500' # SMTP
+      - '8025:9000' # Web interface
+
+  pgweb:
+    restart: always
+    image: sosedoff/pgweb:latest
+    ports:
+      - '8081:8081'
+    links:
+      - pgsql:pgsql
+    environment:
+      DATABASE_URL: postgres://postgres:securedb@pgsql:5432/apiris?sslmode=disable
+    depends_on:
+      - pgsql
+
+volumes:
+  pgsql_data:
+    driver: local
+  redis_data:
+    driver: local

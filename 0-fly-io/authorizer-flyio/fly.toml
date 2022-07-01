@@ -1,0 +1,43 @@
+app = "feelsso"
+kill_signal = "SIGINT"
+kill_timeout = 5
+processes = []
+
+[experimental]
+private_network = true
+cmd = ["./build/server", "--database_type=postgres"]
+allowed_public_ports = []
+auto_rollback = true
+
+[build]
+image = "lakhansamani/authorizer:latest"
+
+[env]
+  PORT = "8080"
+  FLY_REGION = "sin"
+
+[[services]]
+  internal_port = 8080
+  processes = ["app"]
+  protocol = "tcp"
+  script_checks = []
+
+  [services.concurrency]
+    type = "connections"
+    hard_limit = 25
+    soft_limit = 20
+
+  [[services.ports]]
+    force_https = true
+    handlers = ["http"]
+    port = 80
+
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = 443
+
+  [[services.tcp_checks]]
+    grace_period = "1s"
+    interval = "15s"
+    restart_limit = 0
+    timeout = "2s"

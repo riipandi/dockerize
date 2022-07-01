@@ -1,0 +1,79 @@
+# fly.toml file generated for feelredis on 2022-05-03T16:52:54+07:00
+
+app = "sdns"
+kill_signal = "SIGINT"
+kill_timeout = 5
+processes = []
+
+[build]
+  # image = "ghcr.io/semihalev/sdns/sdns:v1.2.1"
+  image = "c1982/sdns:latest"
+
+[env]
+  FLY_REGION = "lax"
+
+[experimental]
+  private_network = true
+  allowed_public_ports = []
+  auto_rollback = true
+
+# DNS Server (UDP)
+[[services]]
+  internal_port = 53
+  protocol = "udp"
+
+  [[services.ports]]
+    port = "53"
+
+# DNS Server (TCP)
+[[services]]
+  internal_port = 53
+  protocol = "tcp"
+
+  [[services.ports]]
+    port = "53"
+
+# DNS-over-TLS server
+[[services]]
+  internal_port = 853
+  protocol = "tcp"
+
+  [[services.ports]]
+    handlers = ["tls"]
+    port = "853"
+
+# DNS-over-HTTPS server
+[[services]]
+  internal_port = 8053
+  protocol = "tcp"
+
+  [[services.ports]]
+    handlers = ["http"]
+    port = "443"
+
+# HTTP API
+[[services]]
+  http_checks = []
+  internal_port = 8080
+  processes = ["app"]
+  protocol = "tcp"
+  script_checks = []
+  [services.concurrency]
+    hard_limit = 25
+    soft_limit = 20
+    type = "connections"
+
+  [[services.ports]]
+    force_https = true
+    handlers = ["http"]
+    port = 80
+
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = 8443
+
+  [[services.tcp_checks]]
+    grace_period = "1s"
+    interval = "15s"
+    restart_limit = 0
+    timeout = "2s"

@@ -1,0 +1,16 @@
+# fly.toml file generated for feelredis on 2022-05-03T16:52:54+07:00
+
+app = "feelredis"
+
+[build]
+  image = "flyio/redis:6.2.6"
+
+[env]
+  FLY_REGION = "sin"
+
+[experimental]
+  private_network = true
+
+[[mounts]]
+  destination = "/data"
+  source = "feelredis_data"
