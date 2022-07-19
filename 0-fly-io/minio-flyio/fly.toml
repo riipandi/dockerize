@@ -1,26 +1,26 @@
-app = "feelsso"
+app = "domja-minio"
 kill_signal = "SIGINT"
 kill_timeout = 5
 processes = []
 
-[env]
-  FLY_REGION = "sin"
+[build]
+image = "minio/minio:latest"
 
 [experimental]
 private_network = true
-cmd = ["./build/server", "--database_type=postgres"]
+cmd = [ "server", "/data", "--console-address", ":9001" ]
 allowed_public_ports = []
 auto_rollback = true
 
-[build]
-image = "lakhansamani/authorizer:latest"
+[env]
+  FLY_REGION = "sin"
 
 [[mounts]]
   destination = "/data"
-  source = "feelredis_data"
+  source = "minio_data"
 
 [[services]]
-  internal_port = 8080
+  internal_port = 9000
   processes = ["app"]
   protocol = "tcp"
   script_checks = []
@@ -38,6 +38,20 @@ image = "lakhansamani/authorizer:latest"
   [[services.ports]]
     handlers = ["tls", "http"]
     port = 443
+
+  [[services.tcp_checks]]
+    grace_period = "1s"
+    interval = "15s"
+    restart_limit = 0
+    timeout = "2s"
+
+[[services]]
+    internal_port = 9001
+    protocol = 'tcp'
+
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = 9001
 
   [[services.tcp_checks]]
     grace_period = "1s"

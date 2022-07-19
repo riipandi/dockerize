@@ -1,11 +1,9 @@
 # Minio on Fly.io
 
-### Launch and deploy
-
 ```sh
-fly create --org personal --name minio
-fly volumes create minio_data --region lax --size 1 -a minio
+fly apps create --org domainaja --name domja-minio
+fly volumes create minio_data --region sin --size 1 -a domja-minio
 fly secrets set $(cat .env | xargs -I %s echo %s)
-fly certs create minio.example.com
+fly certs create s3.domainaja.id
 fly deploy
 ```
