@@ -1,0 +1,6 @@
+app = "keydb-multimaster-example"
+
+[mount]
+source = "keydb_server"
+destination = "/data"
+
